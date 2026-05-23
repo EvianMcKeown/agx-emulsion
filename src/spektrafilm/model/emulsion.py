@@ -1,3 +1,4 @@
+
 from typing import Literal, TypeAlias
 
 import numpy as np
@@ -8,6 +9,8 @@ from spektrafilm.model.density_curves import interpolate_exposure_to_density
 from spektrafilm.model.grain import apply_grain
 from spektrafilm.runtime.params_schema import DirCouplersParams, GrainParams
 
+# Import the new analytical grain engine
+from spektrafilm.model.grain_statistical import apply_statistical_grain
 
 FloatArray: TypeAlias = NDArray[np.float64]
 ProfileType: TypeAlias = Literal['negative', 'positive']
@@ -56,6 +59,7 @@ def develop(
         normalized_density_curves,
         gamma_factor=gamma_factor,
     )
+    
     density_cmy = apply_density_correction_dir_couplers(
         density_cmy,
         log_raw,
@@ -66,16 +70,30 @@ def develop(
         profile_type,
         gamma_factor=gamma_factor,
     )
-    return apply_grain(
-        density_cmy,
-        pixel_size_um,
-        grain,
-        normalized_density_curves,
-        density_curves_layers,
-        profile_type,
-        bypass_grain=bypass_grain,
-        use_fast_stats=use_fast_stats,
-    )
+    
+    # --- ROUTING UPGRADE ---
+    if use_fast_stats and not bypass_grain:
+        return apply_statistical_grain(
+            density_cmy,
+            pixel_size_um,
+            grain,
+            normalized_density_curves,
+            density_curves_layers,
+            profile_type,
+            bypass_grain=bypass_grain,
+            use_fast_stats=use_fast_stats,
+        )
+    else:
+        return apply_grain(
+            density_cmy,
+            pixel_size_um,
+            grain,
+            normalized_density_curves,
+            density_curves_layers,
+            profile_type,
+            bypass_grain=bypass_grain,
+            use_fast_stats=use_fast_stats,
+        )
 
 # Some future work notes:
 # Add print dye shift in nanometers for dye absorption peaks.
